@@ -10,7 +10,6 @@ class Character(object):
         self.name = '<undefined>'
         self.health = 10
         self.power = 5
-        self.coins = 20
 
     def alive(self):
         return self.health > 0
@@ -34,45 +33,45 @@ class Character(object):
         print "%s has %d health and %d power." % (self.name, self.health, self.power)
 
 class Hero(Character):
+    armor = 0
+    evade = 0.0
+    poison = False
     def __init__(self):
         super(Hero, self).__init__()
         self.name = 'hero'
         self.health = 10
         self.power = 5
         self.coins = 20
-    armor = 0
-    evade = 0
 
     def restore(self):
         self.health = 10
         print "Hero's heath is restored to %d!" % self.health
         time.sleep(1)
-    if evade > 0:
-        evadeChance = (self.evade / 20)
+    def attack(self, enemy):
+        if self.poison:
+            print "%s has poison on his blade, attack deals + 1 damage to %s" % (self.name, enemy.name)
+            self.power +=1
+        super(Hero, self).attack(enemy)
+        if self.poison:
+            self.power -= 1
+            self.poison = False
+    def receive_damage(self, points):
+        evadeChance = float(self.evade / 20.0)
         evaded = random.random() < evadeChance
-        if armor and not evaded:
-            super(Hero, self).receive_damage(points)
-            def receive_damage(self, points):
-                healthArmor = self.health + self.armor
-                healthArmor -= points
-                print "%s received %d damage." % (self.name, points)
-                if self.health <= 0:
-                    print "%s is dead." % self.name
-        elif not evaded:
-            super(Hero, self).receive_damage(points)
-            def receive_damage(self, points):
-                self.health -= points
-                print "%s received %d damage." % (self.name, points)
-                if self.health <= 0:
-                    print "%s is dead." % self.name
-    elif armor > 0:
+        print evadeChance
+        print self.evade
+        print (evaded)
+        if evaded:
+            print "%s has evaded the attack!" % (self.name)
+            points = 0
+            return
+        if self.armor:
+            # healthArmor = self.health + armor
+            self.health += self.armor
+            print "%s has %d armor, health increased to %d" % (self.name, self.armor, self.health)
         super(Hero, self).receive_damage(points)
-        def receive_damage(self, points):
-            healthArmor = self.health + self.armor
-            healthArmor -= points
-            print "%s received %d damage." % (self.name, points)
-            if self.health <= 0:
-                print "%s is dead." % self.name
+        if self.armor:
+            self.armor -= points
 
     def buy(self, item):
         self.coins -= item.cost
@@ -84,18 +83,21 @@ class Zombie(Character):
         self.name = 'Zombie'
         self.health = 5
         self.bounty = 2
-        def receive_damage(self, points):
-            self.health -= points
-            print "%s received %d damage." % (self.name, points)
-            if self.health <= 0:
-                return
+    def receive_damage(self, points):
+        self.health -= points
+        print "%s received %d damage." % (self.name, points)
+        if self.health <= 0:
+            return
+
 class Medic(Character):
     def __init__(self):
         super(Medic, self).__init__()
         self.name = "Medic"
         self.bounty = 4
-        plus2health = randint(1,5)
-        if plus2health == 1:
+    def receive_damage(self, points):
+        super(Medic, self).receive_damage(points)
+        plus2health = random.random() < 0.2
+        if plus2health :
             self.health+=2
             print("Medic self healed +2 HP!")
 class Knight(Character):
@@ -111,29 +113,35 @@ class Shadow(Character):
         self.name = 'Shadow'
         self.health = 1
         self.bounty = 4
+        self.power = 2
     def receive_damage(self, points):
-        recDamage = randint(0,10)
-        if recDamage == 5:
-            self.health -= points
-            print "%s received %d damage." % (self.name, points)
-            if self.health <= 0:
-                print "%s is dead." % self.name
-        else:
+        recDamage = random.random() < 0.1
+        if recDamage:
             print("Shadow evaded attack!!")
-            return
-
+            points = 0
+        super(Shadow, self).receive_damage(points)
 class Mage(Character):
     def __init__(self):
         super(Mage, self).__init__()
         self.name = "Mage"
-        self.health = 5
+        self.health = 6
         self.power = 3
         self.bounty = 8
-        plus3health = randint(0,5)
-        if plus3health == 1 or plus3health == 3:
+    def receive_damage(self, points):
+        boostHP = random.random() < 0.4
+        if boostHP:
+            print("%s boosted health by 3 for this turn!") % (self.name)
             self.health+=3
-        if plus3health == 2:
-            self.power = 5
+        super(Mage, self).receive_damage(points)
+
+    def attack(self, enemy):
+        boostPWR = random.random() < 0.2
+        if boostPWR:
+            print("%s boosted power by 5 for this turn!") % (self.name)
+            self.power += 5
+        super(Mage, self).attack(enemy)
+
+
 class Goblin(Character):
     def __init__(self):
         super(Goblin, self).__init__()
@@ -152,12 +160,13 @@ class Wizard(Character):
 
     def attack(self, enemy):
         swap_power = random.random() > 0.5
-        if swap_power:
-            print "%s swaps power with %s during attack" % (self.name, enemy.name)
-            self.power, enemy.power = enemy.power, self.power
-        super(Wizard, self).attack(enemy)
-        if swap_power:
-            self.power, enemy.power = enemy.power, self.power
+        if self.health > 0:
+            if swap_power:
+                print "%s swaps power with %s during attack" % (self.name, enemy.name)
+                self.power, enemy.power = enemy.power, self.power
+            super(Wizard, self).attack(enemy)
+            if swap_power:
+                self.power, enemy.power = enemy.power, self.power
 
 class Battle(object):
     def do_battle(self, hero, enemy):
@@ -227,6 +236,12 @@ class Evade(object):
             print "%s's evade increased to %d." % (hero.name, hero.evade)
     else:
         print("You cannot purchase any more Evade, you are maxed out...")
+class Poison(object):
+    cost = 3
+    name = 'Poison'
+    def apply(self, hero):
+        hero.poison = True
+        print ("%s's power increased to %d for one attack.")    %(hero.name, hero.power)
 class Store(object):
     # If you define a variable in the scope of a class:
     # This is a class variable and you can access it like
